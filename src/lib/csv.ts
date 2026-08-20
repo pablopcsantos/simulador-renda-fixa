@@ -1,5 +1,6 @@
-import { formatCurrency, parseBrNumber } from './formatting';
-import type { InvestmentResult } from './types';
+import { formatCurrency, parseBrNumber } from './formatting.ts';
+import { identifyProduct, PRODUCTS } from './products.ts';
+import type { InvestmentResult, ProductId } from './types';
 
 const HEADERS = ['Ativo', 'Valor Investido', 'Valor Bruto', 'Valor Liquido', 'Imposto Pago', 'Taxa de IR'];
 
@@ -42,7 +43,7 @@ export function baixarCsv(resultados: InvestmentResult[]): void {
   URL.revokeObjectURL(url);
 }
 
-function splitSemicolonCsvLine(line: string): string[] {
+function splitSemicolonCsvLine(line: string, lineNumber: number): string[] {
   const cells: string[] = [];
   let current = '';
   let quoted = false;
@@ -65,6 +66,10 @@ function splitSemicolonCsvLine(line: string): string[] {
     }
   }
 
+  if (quoted) {
+    throw new Error(`Linha ${lineNumber} do CSV contém aspas não fechadas.`);
+  }
+
   cells.push(current.trim());
   return cells;
 }
@@ -74,18 +79,40 @@ export function importarResultadosCsv(content: string): InvestmentResult[] {
   const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) throw new Error('O CSV não contém resultados para importar.');
 
-  const resultados: InvestmentResult[] = [];
+  const headers = splitSemicolonCsvLine(lines[0], 1);
+  if (headers.length !== HEADERS.length || headers.some((header, index) => header !== HEADERS[index])) {
+    throw new Error(`Cabeçalho do CSV inválido. Use esta ordem: ${HEADERS.join('; ')}.`);
+  }
 
-  for (const line of lines.slice(1)) {
-    const row = splitSemicolonCsvLine(line);
-    if (row.length !== 6) continue;
+  const resultados: InvestmentResult[] = [];
+  const seenProducts = new Set<ProductId>();
+
+  for (const [index, line] of lines.slice(1).entries()) {
+    const lineNumber = index + 2;
+    const row = splitSemicolonCsvLine(line, lineNumber);
+    if (row.length !== 6) {
+      throw new Error(`Linha ${lineNumber} do CSV possui ${row.length} colunas; eram esperadas 6.`);
+    }
 
     const [ativo, investido, bruto, liquido, imposto, taxaIr] = row;
     const valorLiquido = parseBrNumber(liquido);
+    const produtoId = identifyProduct(ativo);
+    if (!produtoId) throw new Error(`Produto não reconhecido no CSV: ${ativo}.`);
+    if (seenProducts.has(produtoId)) {
+      throw new Error(`O produto ${ativo} aparece mais de uma vez no CSV.`);
+    }
+    seenProducts.add(produtoId);
+
+    const product = PRODUCTS.find((item) => item.id === produtoId);
+    if (!product) continue;
+
+    const characteristicMatch = ativo.match(/\((.*)\)\s*$/);
 
     resultados.push({
+      produtoId,
       nome: ativo,
-      nomeSimples: ativo.split(' (')[0],
+      nomeSimples: product.nome,
+      caracteristica: characteristicMatch?.[1] ?? 'Taxa não informada no CSV',
       investido: parseBrNumber(investido),
       bruto: parseBrNumber(bruto),
       liquido: valorLiquido,

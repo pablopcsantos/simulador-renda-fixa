@@ -8,9 +8,11 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.ts",
     "tauri": "tauri"
   },
   "dependencies": {
+    "jspdf": "^4.2.1",
     "svelte": "5.56.9"
   },
   "devDependencies": {

@@ -1,21 +1,28 @@
 <script lang="ts">
   import { formatCurrency } from '../lib/formatting';
+  import { getProductColor } from '../lib/products';
+  import { isTaxableResult, netGain } from '../lib/resultMetrics';
   import type { InvestmentResult } from '../lib/types';
 
   export let resultado: InvestmentResult;
   export let rank = 1;
 
-  $: rendimentoLiquido = resultado.liquido - resultado.investido;
+  $: rendimentoLiquido = netGain(resultado);
   $: rendimentoBruto = resultado.bruto - resultado.investido;
+  $: productColor = getProductColor(resultado.produtoId);
+  $: tributavel = isTaxableResult(resultado);
 </script>
 
-<article class="result-card">
+<article class="result-card" style={`--product-color: ${productColor}`}>
   <header>
     <div>
       <span class="rank">#{rank}</span>
-      <h3>{resultado.nomeSimples}</h3>
+      <div class="result-product-name">
+        <h3>{resultado.nomeSimples}</h3>
+        <span>{resultado.caracteristica}</span>
+      </div>
     </div>
-    <span class:taxed={resultado.imposto > 0} class="tax-pill">{resultado.taxaIr}</span>
+    <span class:taxed={tributavel} class="tax-pill">{resultado.taxaIr}</span>
   </header>
 
   <div class="result-highlight">

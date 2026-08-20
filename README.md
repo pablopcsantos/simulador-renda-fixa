@@ -9,21 +9,24 @@ Migração da aplicação desktop originalmente escrita em Python/Tkinter para u
 ## Funcionalidades migradas
 
 - aporte inicial e mensal;
-- prazo em meses ou anos;
+- prazo em meses ou anos, com slider, atalhos e limite de 100 anos;
 - Selic, CDI, IPCA e TR editáveis;
 - consulta automática de Selic e IPCA no SGS/BCB;
 - CDB, LCI/LCA, Tesouro Selic, Tesouro Prefixado, Tesouro IPCA+ e Poupança;
+- seleção dos produtos comparados e preferências de interface persistidas no navegador;
 - IR regressivo conforme o algoritmo da versão Python original;
-- gráfico comparativo e gráfico de evolução;
-- cartões de resultados;
+- ranking, destaque do melhor resultado e cartões detalhados;
+- gráfico comparativo e evolução mensal interativa;
+- referência opcional de preservação do poder de compra pelo IPCA;
 - importação e exportação CSV;
+- relatórios em texto, PNG e PDF, além de cópia para a área de transferência;
 - informações sobre poupança e tributação;
 - ajuste de tamanho de fonte;
 - interface responsiva e tema escuro.
 
 ## Atenção sobre o modelo financeiro
 
-A primeira migração preserva deliberadamente a lógica da versão Python para facilitar a comparação dos resultados. O algoritmo original não desconta IOF, embora a interface antiga contenha texto explicativo sobre IOF. O CDI também é aproximado como Selic menos 0,10 ponto percentual. Revise essas premissas antes de tratar o simulador como modelo financeiro definitivo.
+A primeira migração preserva deliberadamente a lógica da versão Python para facilitar a comparação dos resultados. O algoritmo original não desconta IOF, embora a interface antiga contenha texto explicativo sobre IOF. O CDI também é aproximado como Selic menos 0,10 ponto percentual. No Tesouro IPCA+, a taxa anual usada continua sendo a soma simples de IPCA e componente fixo, em vez da composição exata entre os dois fatores. Revise essas premissas antes de tratar o simulador como modelo financeiro definitivo.
 
 ## Desenvolvimento
 
@@ -31,6 +34,16 @@ A primeira migração preserva deliberadamente a lógica da versão Python para 
 npm install
 npm run dev
 ```
+
+## Validação
+
+```bash
+npm test
+npm run check
+npm run build
+```
+
+Os testes cobrem o benchmark IPCA, os limites e resultados do cálculo, seleção de produtos, prazos, importação/exportação CSV, preferências locais e geração dos relatórios. Os workflows de publicação web e compilação Windows executam a suíte antes de gerar os artefatos.
 
 ## Build web
 

@@ -1,5 +1,7 @@
-import { parseBrNumber } from './formatting';
-import type { InvestmentResult, SimulationInputs } from './types';
+import { parseBrNumber } from './formatting.ts';
+import { durationInMonths, MAX_SIMULATION_MONTHS } from './duration.ts';
+import { createDefaultProductSelection } from './products.ts';
+import type { InvestmentResult, ProductId, ProductSelection, SimulationInputs } from './types';
 
 interface Contribution {
   principal: number;
@@ -13,8 +15,22 @@ export function calcularEvolucao(
   taxaAnual: number,
   meses: number,
   tributavel = true
-): Omit<InvestmentResult, 'nome' | 'nomeSimples'> {
+): Omit<InvestmentResult, 'produtoId' | 'nome' | 'nomeSimples' | 'caracteristica'> {
+  if (!Number.isFinite(aporteInicial) || !Number.isFinite(aporteMensal) || aporteInicial < 0 || aporteMensal < 0) {
+    throw new Error('Os aportes devem ser números finitos e não negativos.');
+  }
+  if (!Number.isSafeInteger(meses) || meses < 1 || meses > MAX_SIMULATION_MONTHS) {
+    throw new Error('O prazo deve ser um número inteiro entre 1 e 1.200 meses.');
+  }
+  if (!Number.isFinite(taxaAnual) || taxaAnual <= -100) {
+    throw new Error('As taxas anuais devem ser números finitos maiores que -100%.');
+  }
+
   const taxaMensal = Math.pow(1 + taxaAnual / 100, 1 / 12) - 1;
+  if (!Number.isFinite(taxaMensal)) {
+    throw new Error('Não foi possível converter a taxa anual informada para uma taxa mensal.');
+  }
+
   const aportes: Contribution[] = [
     { principal: aporteInicial, valorAtual: aporteInicial, idade: 0 }
   ];
@@ -24,6 +40,10 @@ export function calcularEvolucao(
     for (const aporte of aportes) {
       aporte.valorAtual *= 1 + taxaMensal;
       aporte.idade += 1;
+
+      if (!Number.isFinite(aporte.valorAtual)) {
+        throw new Error('O cálculo excedeu o limite numérico suportado. Reduza aportes, taxas ou prazo.');
+      }
     }
 
     let saldoLiquidoMes = 0;
@@ -45,6 +65,10 @@ export function calcularEvolucao(
       } else {
         saldoLiquidoMes += aporte.valorAtual;
       }
+
+      if (!Number.isFinite(saldoLiquidoMes)) {
+        throw new Error('O cálculo excedeu o limite numérico suportado. Reduza aportes, taxas ou prazo.');
+      }
     }
 
     historicoLiquido.push(saldoLiquidoMes);
@@ -61,6 +85,10 @@ export function calcularEvolucao(
   const impostoPagoTotal = valorBrutoTotal - valorLiquidoTotal;
   const investido = meses > 0 ? aporteInicial + aporteMensal * (meses - 1) : aporteInicial;
 
+  if (![valorBrutoTotal, valorLiquidoTotal, impostoPagoTotal, investido].every(Number.isFinite)) {
+    throw new Error('O cálculo excedeu o limite numérico suportado. Reduza aportes, taxas ou prazo.');
+  }
+
   return {
     bruto: valorBrutoTotal,
     liquido: valorLiquidoTotal,
@@ -71,47 +99,113 @@ export function calcularEvolucao(
   };
 }
 
-export function simularInvestimentos(inputs: SimulationInputs): InvestmentResult[] {
+interface InvestmentDefinition {
+  produtoId: ProductId;
+  nome: string;
+  nomeSimples: string;
+  caracteristica: string;
+  taxa: number;
+  tributavel: boolean;
+}
+
+interface InvestmentBlueprint {
+  produtoId: ProductId;
+  create: () => Omit<InvestmentDefinition, 'produtoId'>;
+}
+
+export function simularInvestimentos(
+  inputs: SimulationInputs,
+  produtosAtivos: ProductSelection = createDefaultProductSelection()
+): InvestmentResult[] {
   const inicial = parseBrNumber(inputs.aporteInicial);
   const mensal = parseBrNumber(inputs.aporteMensal);
-  const valorPrazo = Math.trunc(parseBrNumber(inputs.prazo));
+  const meses = durationInMonths(inputs.prazo, inputs.prazoUnidade);
 
   if (inicial < 0 || mensal < 0) {
     throw new Error('Os aportes não podem ser negativos.');
   }
-  if (valorPrazo < 1) {
+  if (meses < 1) {
     throw new Error('O prazo deve ser de pelo menos 1 mês ou 1 ano.');
   }
+  if (!Number.isSafeInteger(meses) || meses > MAX_SIMULATION_MONTHS) {
+    throw new Error('O prazo deve ser inteiro e não pode ultrapassar 1.200 meses (100 anos).');
+  }
+  if (!Object.values(produtosAtivos).some(Boolean)) {
+    throw new Error('Selecione pelo menos um investimento para comparar.');
+  }
 
-  const meses = inputs.prazoUnidade === 'Anos' ? valorPrazo * 12 : valorPrazo;
-  const selic = parseBrNumber(inputs.selic);
-  const cdi = parseBrNumber(inputs.cdi);
-  const ipca = parseBrNumber(inputs.ipca);
-  const tr = parseBrNumber(inputs.tr);
+  const blueprints: InvestmentBlueprint[] = [
+    {
+      produtoId: 'poupanca',
+      create: () => {
+        const selic = parseBrNumber(inputs.selic);
+        const tr = parseBrNumber(inputs.tr);
+        const taxa = selic > 8.5
+          ? (Math.pow(1.005, 12) - 1) * 100 + tr
+          : selic * 0.7 + tr;
+        const caracteristica = `${taxa.toFixed(2).replace('.', ',')}% a.a.`;
 
-  const taxaPoupancaAnual =
-    selic > 8.5
-      ? (Math.pow(1.005, 12) - 1) * 100 + tr
-      : selic * 0.7 + tr;
-
-  const taxaTesouroSelic = selic;
-  const taxaCdb = cdi * (parseBrNumber(inputs.cdbPercentualCdi) / 100);
-  const taxaLci = cdi * (parseBrNumber(inputs.lciPercentualCdi) / 100);
-  const taxaPre = parseBrNumber(inputs.tesouroPre);
-  const taxaIpca = ipca + parseBrNumber(inputs.tesouroIpcaFixo);
-
-  const ativos: Array<[string, string, number, boolean]> = [
-    [`Poupança (${taxaPoupancaAnual.toFixed(2).replace('.', ',')}% a.a.)`, 'Poupança', taxaPoupancaAnual, false],
-    [`CDB (${inputs.cdbPercentualCdi.trim()}% do CDI)`, 'CDB', taxaCdb, true],
-    [`LCI/LCA (${inputs.lciPercentualCdi.trim()}% do CDI)`, 'LCI/LCA', taxaLci, false],
-    [`Tesouro Selic (${selic.toFixed(2).replace('.', ',')}% a.a.)`, 'Tesouro Selic', taxaTesouroSelic, true],
-    [`Tesouro Pré (${inputs.tesouroPre.trim()}% a.a.)`, 'Tesouro Pré', taxaPre, true],
-    [`Tesouro IPCA+ (IPCA + ${inputs.tesouroIpcaFixo.trim()}%)`, 'Tesouro IPCA+', taxaIpca, true]
+        return {
+          nome: `Poupança (${caracteristica})`,
+          nomeSimples: 'Poupança',
+          caracteristica,
+          taxa,
+          tributavel: false
+        };
+      }
+    },
+    {
+      produtoId: 'cdb',
+      create: () => {
+        const taxa = parseBrNumber(inputs.cdi) * (parseBrNumber(inputs.cdbPercentualCdi) / 100);
+        const caracteristica = `${inputs.cdbPercentualCdi.trim()}% do CDI`;
+        return { nome: `CDB (${caracteristica})`, nomeSimples: 'CDB', caracteristica, taxa, tributavel: true };
+      }
+    },
+    {
+      produtoId: 'lciLca',
+      create: () => {
+        const taxa = parseBrNumber(inputs.cdi) * (parseBrNumber(inputs.lciPercentualCdi) / 100);
+        const caracteristica = `${inputs.lciPercentualCdi.trim()}% do CDI`;
+        return { nome: `LCI/LCA (${caracteristica})`, nomeSimples: 'LCI/LCA', caracteristica, taxa, tributavel: false };
+      }
+    },
+    {
+      produtoId: 'tesouroSelic',
+      create: () => {
+        const taxa = parseBrNumber(inputs.selic);
+        const caracteristica = `${taxa.toFixed(2).replace('.', ',')}% a.a.`;
+        return { nome: `Tesouro Selic (${caracteristica})`, nomeSimples: 'Tesouro Selic', caracteristica, taxa, tributavel: true };
+      }
+    },
+    {
+      produtoId: 'tesouroPrefixado',
+      create: () => {
+        const taxa = parseBrNumber(inputs.tesouroPre);
+        const caracteristica = `${inputs.tesouroPre.trim()}% a.a.`;
+        return { nome: `Tesouro Prefixado (${caracteristica})`, nomeSimples: 'Tesouro Prefixado', caracteristica, taxa, tributavel: true };
+      }
+    },
+    {
+      produtoId: 'tesouroIpca',
+      create: () => {
+        const taxa = parseBrNumber(inputs.ipca) + parseBrNumber(inputs.tesouroIpcaFixo);
+        const caracteristica = `IPCA + ${inputs.tesouroIpcaFixo.trim()}%`;
+        return { nome: `Tesouro IPCA+ (${caracteristica})`, nomeSimples: 'Tesouro IPCA+', caracteristica, taxa, tributavel: true };
+      }
+    }
   ];
 
-  return ativos.map(([nome, nomeSimples, taxa, tributavel]) => ({
-    ...calcularEvolucao(inicial, mensal, taxa, meses, tributavel),
-    nome,
-    nomeSimples
-  }));
+  return blueprints
+    .filter((blueprint) => produtosAtivos[blueprint.produtoId])
+    .map((blueprint) => {
+      const investimento: InvestmentDefinition = { produtoId: blueprint.produtoId, ...blueprint.create() };
+      return {
+        ...calcularEvolucao(inicial, mensal, investimento.taxa, meses, investimento.tributavel),
+        produtoId: investimento.produtoId,
+        nome: investimento.nome,
+        nomeSimples: investimento.nomeSimples,
+        caracteristica: investimento.caracteristica
+      };
+    });
 }

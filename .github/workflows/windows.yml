@@ -33,6 +33,9 @@ jobs:
       - name: Instalar dependências do frontend
         run: npm install
 
+      - name: Executar testes
+        run: npm test
+
       - name: Verificar código
         run: npm run check
 
