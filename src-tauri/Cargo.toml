@@ -1,0 +1,16 @@
+[package]
+name = "simulador-renda-fixa"
+version = "1.0.0"
+description = "Simulador educacional de aplicações em renda fixa"
+authors = ["Pablo Phillipe Cândido dos Santos"]
+edition = "2021"
+
+[lib]
+name = "simulador_renda_fixa_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
