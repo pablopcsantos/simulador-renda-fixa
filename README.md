@@ -1,5 +1,9 @@
 # Simulador de Renda Fixa — Svelte + TypeScript + Tauri
 
+*Read this in other languages: [English](README-en.md)*
+
+---
+
 Migração da aplicação desktop originalmente escrita em Python/Tkinter para uma base única capaz de gerar:
 
 - uma versão online estática para GitHub Pages;
