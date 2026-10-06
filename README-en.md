@@ -1,4 +1,4 @@
-# Fixed-Income Simulator — Svelte + TypeScript + Tauri
+# Fixed-Income Simulator
 
 *Leia isto em outros idiomas: [Português](README.md)*
 
