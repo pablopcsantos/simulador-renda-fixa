@@ -39,7 +39,7 @@ npm install
 npm run dev
 ```
 
-## Validação
+## Verificações
 
 ```bash
 npm test
@@ -66,3 +66,12 @@ npm run tauri build
 ```
 
 No fluxo recomendado deste projeto, o Windows é compilado no GitHub Actions, não no computador local.
+
+## 👤 Autoria e desenvolvimento
+
+O **Simulador de Renda Fixa** é uma aplicação multiplataforma de simulação financeira desenvolvida de forma independente por **Pablo Phillipe Cândido dos Santos**, destinada à comparação educacional de produtos de renda fixa em cenários configuráveis. A mesma base em Svelte e TypeScript gera uma versão web estática e uma versão desktop para Windows via Tauri, reunindo simulações, comparação gráfica, importação e exportação CSV e geração de relatórios.
+
+O desenvolvimento contou com a utilização de ferramentas de inteligência artificial generativa como recurso auxiliar no processo de desenvolvimento, mantendo-se sob responsabilidade do autor a concepção, implementação, integração e verificação do projeto.
+
+Currículo Lattes: [http://lattes.cnpq.br/9500873674712528](http://lattes.cnpq.br/9500873674712528)
+
