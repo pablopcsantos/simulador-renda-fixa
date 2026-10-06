@@ -1,4 +1,4 @@
-# Simulador de Renda Fixa — Svelte + TypeScript + Tauri
+# Simulador de Renda Fixa
 
 *Read this in other languages: [English](README-en.md)*
 
