@@ -39,7 +39,7 @@ npm install
 npm run dev
 ```
 
-## Validation
+## Verification
 
 ```bash
 npm test
@@ -66,3 +66,12 @@ npm run tauri build
 ```
 
 In the recommended workflow for this project, the Windows version is compiled through GitHub Actions rather than on the local computer.
+
+## 👤 Authorship and development
+
+The **Fixed-Income Simulator** is a cross-platform financial simulation application independently developed by **Pablo Phillipe Cândido dos Santos** for educational comparison of fixed-income products under configurable scenarios. The same Svelte and TypeScript codebase generates both a static web version and a Windows desktop version through Tauri, combining simulations, graphical comparisons, CSV import/export, and report generation.
+
+Generative artificial intelligence tools were used as auxiliary resources during development, while the author remained responsible for the project's conception, implementation, integration, and verification.
+
+Lattes CV: [http://lattes.cnpq.br/9500873674712528](http://lattes.cnpq.br/9500873674712528)
+
